@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FBF6EE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Fast Forward</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+/* Layout: one phone-width column, a fixed bottom tab bar, bottom sheets for every action. The current stage colour tints the top of the screen. */
+:root{
+  --bg:#FBF6EE; --surface:#FFFDF9; --surface-2:#F1E8DA; --ink:#2B2420; --muted:#7D7067; --line:#E6DCCD;
+  --stage:#F1E8DA; --stage-ink:#2B2420; --accent:#F4B9A0; --accent-ink:#2B2420; --warn:#B8542E;
+  --font-ui:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-display:'Fraunces',Georgia,'Times New Roman',serif;
+  --r:24px;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){ --bg:#1B1613; --surface:#241E1A; --surface-2:#2F2722; --ink:#F4EDE3; --muted:#A99C91; --line:#3B322C; --stage:#2F2722; --stage-ink:#F4EDE3; --warn:#E08A62; color-scheme:dark } }
+:root[data-theme="dark"]{ --bg:#1B1613; --surface:#241E1A; --surface-2:#2F2722; --ink:#F4EDE3; --muted:#A99C91; --line:#3B322C; --stage:#2F2722; --stage-ink:#F4EDE3; --warn:#E08A62; color-scheme:dark }
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--stage);opacity:var(--tint,.28);-webkit-mask-image:linear-gradient(#000,transparent 60%);mask-image:linear-gradient(#000,transparent 60%);transition:background-color 1s;pointer-events:none}
+body.noscroll{overflow:hidden}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:6px}
+h1,h2,h3{margin:0;text-wrap:balance;line-height:1.15}
+p{margin:0}
+ul{margin:0;padding-left:20px}
+.display{font-family:var(--font-display);font-weight:600;font-variation-settings:"opsz" 72}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--c,var(--muted))}
+
+.app{max-width:480px;margin:0 auto;padding-inline:16px;padding-block:calc(12px + env(safe-area-inset-top,0px)) calc(96px + env(safe-area-inset-bottom,0px));min-height:100%}
+.top{display:flex;justify-content:space-between;align-items:center;min-height:40px;margin-bottom:8px}
+.brand{font-family:var(--font-display);font-weight:600;font-size:18px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.tight{gap:14px;margin-top:10px}
+.center{text-align:center}
+section+section,section+h2,h2+section{margin-top:16px}
+
+.btn{border-radius:999px;padding:14px 22px;font-weight:700;font-size:16px;background:var(--ink);color:var(--bg);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;transition:transform .15s}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.stage{background:var(--stage);color:var(--stage-ink)}
+.btn.wide{width:100%}
+.btn[disabled]{opacity:.45;cursor:default}
+.link{font-weight:700;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
+.link.danger{color:var(--warn)}
+.chip{border-radius:999px;padding:8px 14px;border:1.5px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;white-space:nowrap}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips.scroll{flex-wrap:nowrap;overflow-x:auto;margin-inline:-16px;padding-inline:16px;padding-bottom:6px;scrollbar-width:none}
+.chips.scroll::-webkit-scrollbar{display:none}
+
+.card{background:var(--surface);border-radius:var(--r);padding:18px 20px;border:1px solid var(--line)}
+.card.soft{background:var(--surface-2);border-color:transparent}
+.card p{margin-top:6px}
+.feed-card p{font-size:17px}
+.feed-card.is-stage{border-left:6px solid var(--c)}
+.warn-card{border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
+.warn-card summary{font-weight:800;cursor:pointer;color:var(--warn)}
+details>*:not(summary){margin-top:8px}
+
+/* ring */
+.ring-wrap{position:relative;width:min(76vw,300px);margin:8px auto 0;aspect-ratio:1;max-width:100%}
+.ring-wrap svg{width:100%;height:100%;display:block}
+.ring-centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px;pointer-events:none}
+.clock{font-size:clamp(34px,10vw,44px);font-variant-numeric:tabular-nums;line-height:1}
+.stage-name{font-size:20px;margin-top:6px}
+.cheer{text-align:center;font-size:21px;line-height:1.25;margin-top:16px;padding-inline:12px}
+.facts{margin:12px 0 0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px}
+.facts dt{color:var(--muted);font-weight:700;white-space:nowrap}
+.facts dd{margin:0}
+.hero{padding-block:28px 8px}
+.hero h1{font-size:34px;margin-bottom:10px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px 12px;text-align:center}
+.stat b{display:block;font-family:var(--font-display);font-size:28px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+.meter{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden;margin-top:6px}
+.meter i{display:block;height:100%;background:var(--ink);border-radius:999px}
+.fast-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.fast-row:last-child{border-bottom:0}
+.pill{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;background:var(--surface-2);white-space:nowrap}
+.pill.good{background:color-mix(in srgb,#E3B23C 35%,var(--surface-2))}
+.badge{display:flex;gap:12px;align-items:center;padding:10px 0}
+.badge .dot{width:14px;height:14px}
+
+/* stages */
+.stage-card{display:grid;grid-template-columns:8px 1fr;gap:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.stage-card .rail{border-radius:4px;background:var(--c)}
+.stage-card h3{font-family:var(--font-display);font-weight:600;font-size:22px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.stage-card .hours{font-family:var(--font-ui);font-size:14px;font-weight:700;color:var(--muted);white-space:nowrap}
+.stage-card dl{margin:10px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
+.stage-card dt{color:var(--muted);font-weight:700}
+.stage-card dd{margin:0}
+.here{background:var(--c);color:var(--stage-ink);font-size:12px;font-weight:800;padding:3px 10px;border-radius:999px}
+
+/* tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:4px;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:5}
+.tabs button{flex:1;max-width:120px;padding:10px 6px;border-radius:14px;font-weight:700;font-size:14px;color:var(--muted)}
+.tabs button[aria-current]{color:var(--ink);background:var(--surface-2)}
+
+/* sheet */
+.sheet-wrap{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.backdrop{position:absolute;inset:0;background:rgba(20,12,8,.45)}
+.sheet{position:relative;width:100%;max-width:520px;max-height:88vh;overflow:auto;background:var(--surface);border-radius:28px 28px 0 0;padding:14px 20px calc(24px + env(safe-area-inset-bottom,0px));animation:up .25s ease-out}
+.sheet::before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+.sheet h2{font-size:26px;margin-bottom:6px}
+.sheet .stack{margin-top:16px}
+@keyframes up{from{transform:translateY(30px);opacity:0}}
+.field{display:flex;flex-direction:column;gap:8px}
+.field label{font-weight:800;font-size:14px}
+.field label small{display:block;font-weight:600;font-size:13px;color:var(--muted);margin-top:2px}
+.ends{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:var(--muted);padding-inline:4px;margin-top:-2px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;min-height:44px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);font-weight:700;display:flex;align-items:center;justify-content:center}
+.seg button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+textarea,input[type=number],input[type=datetime-local]{font:inherit;color:inherit;background:var(--surface-2);border:1.5px solid transparent;border-radius:14px;padding:12px 14px;width:100%}
+textarea{min-height:72px;resize:vertical}
+input[type=number]{width:90px}
+.check{display:flex;gap:10px;align-items:flex-start;font-weight:600;padding:12px 0}
+.check input{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--ink)}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 16px;border-radius:16px;border:1.5px solid var(--line);background:var(--surface)}
+.opt.on{border-color:var(--ink);background:var(--surface-2)}
+.opt span{color:var(--muted);font-size:14px;text-align:right}
+.err{color:var(--warn);font-weight:700;font-size:14px}
+
+/* dial picker: face tinted with the current stage colour, hand and selection in the stage colour */
+.dial{width:min(78vw,260px);margin:0 auto;aspect-ratio:1;max-width:100%;touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer;border-radius:50%}
+.dial svg{width:100%;height:100%;display:block}
+.dial .face{fill:color-mix(in srgb,var(--accent) 32%,var(--surface-2))}
+.dial .hand{stroke:var(--accent);stroke-width:3}
+.dial .dot{fill:var(--accent)}
+.dial .pip{fill:var(--accent-ink)}
+.dial .num{fill:var(--ink);font-family:var(--font-ui);font-weight:700;font-size:17px;pointer-events:none}
+.dial .num.sel{fill:var(--accent-ink)}
+.readout{display:flex;justify-content:center;align-items:center;gap:4px;font-family:var(--font-display);font-weight:600;font-size:42px;font-variant-numeric:tabular-nums;line-height:1}
+.readout button{padding:6px 10px;border-radius:14px;color:var(--muted);font:inherit;min-width:64px;text-align:center}
+.readout button.on{color:var(--ink);background:color-mix(in srgb,var(--accent) 38%,transparent)}
+.readout .colon{color:var(--muted)}
+.ampm{display:flex;flex-direction:column;gap:4px;margin-left:10px}
+.ampm button{font-family:var(--font-ui);font-size:13px;font-weight:800;padding:10px 12px;min-height:36px;border-radius:10px;color:var(--muted)}
+.ampm button.on{background:var(--accent);color:var(--accent-ink)}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:700;z-index:30}
+
+/* onboarding */
+.ob{min-height:calc(100vh - 60px);display:flex;flex-direction:column;justify-content:center;gap:18px;padding-block:24px}
+.ob h1{font-size:34px}
+.ob .stack{margin-top:8px}
+.ob ul{line-height:1.7}
+
+pre.test{white-space:pre-wrap;font-size:13px;background:var(--surface-2);padding:12px;border-radius:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app"><main id="view"></main></div>
+<nav class="tabs" id="tabs" hidden>
+  <button data-act="tab" data-tab="home">Home</button>
+  <button data-act="tab" data-tab="stages">Stages</button>
+  <button data-act="tab" data-tab="tips">Tips</button>
+  <button data-act="tab" data-tab="history">History</button>
+</nav>
+<div class="sheet-wrap" id="sheet" hidden><div class="backdrop" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+/* ---------- content ---------- */
+const STAGES=[
+{n:1,name:'Settling',from:0,to:4,color:'#F4B9A0',ink:'#2B2420',body:'Digesting your last meal. Insulin is high.',feel:'Full, content',focus:'Hydration, a gentle walk, set your intention'},
+{n:2,name:'Steady',from:4,to:12,color:'#E6C99A',ink:'#2B2420',body:'Insulin drops. Liver glycogen is fuelling you.',feel:'Normal. First hunger wave near hour 10 to 12',focus:'Water and electrolytes, light work, sleep prep if overnight'},
+{n:3,name:'The Switch',from:12,to:16,color:'#E3B23C',ink:'#2B2420',body:'Glycogen runs low. Fat burning ramps up.',feel:'Hunger peaks then fades. A mild headache is possible',focus:'Salt in your water, a walk, something to keep your hands busy'},
+{n:4,name:'Ketosis',from:16,to:24,color:'#D98C2B',ink:'#2B2420',body:'Your liver makes ketones. Your brain starts using them.',feel:'Calm focus, less hunger, maybe cold hands',focus:'Deep work, easy movement, a plan for breaking it well'},
+{n:5,name:'Reset',from:24,to:48,color:'#C4613A',ink:'#FFF8F0',body:'Autophagy likely ramps up. Growth hormone rises.',feel:'Steady energy, hunger mostly gone',focus:'Rest, electrolytes, a walk, journal'},
+{n:6,name:'Deep',from:48,to:72,color:'#7B3F61',ink:'#FFF8F0',body:'Ketones are the main fuel. Protein is spared.',feel:'Light, clear, occasionally dizzy on standing',focus:'Stand slowly, salt, check in with a doctor'},
+{n:7,name:'Extended',from:72,to:Infinity,color:'#4E2A47',ink:'#FFF8F0',body:'Metabolic adaptation. Refeeding risk rises.',feel:'Varies',focus:'A doctor in the loop and a slow, planned refeed'},
+];
+// a fuller plain-words account of each stage for the home card
+const BODY={
+1:"Your body is sorting the meal: sugar into the blood, insulin moving it into muscle and liver. Energy is easy right now because it's coming straight from the plate.",
+2:"Insulin has eased off and your liver is releasing stored sugar a little at a time. This is the quiet stretch. Most people feel exactly like they normally do.",
+3:"The liver's sugar store is running low, so your body is turning up fat burning to cover the gap. The hunger wave is that handover happening, and it fades once the new fuel line is open.",
+4:"Fat is being broken into ketones and your brain has started running on them. Insulin is low, hunger is quieter, and focus often feels cleaner than usual.",
+5:"With insulin low for a full day, the body leans into repair. Cell clean-up, called autophagy, likely steps up and growth hormone rises, which helps protect muscle.",
+6:"Ketones are the main fuel now and the body is guarding its protein carefully. Energy is steady, but blood pressure can dip, which is why standing up slowly matters.",
+7:"Your body has fully adapted to running without food, and the risks shift to minerals and refeeding. This is the point to stop and plan the first meals carefully.",
+};
+// one encouraging line per hour, by stage; the last two lines are for the final hour and for after the planned end
+const CHEER={
+1:["Nice. The first hour is the one most people never start.","You're in. Nothing to push against yet, just let the meal settle.","Easy hours now. Bank them.","Water nearby, intention set. That's a good start."],
+2:["Steady and ordinary is exactly right. You're doing it.","Every quiet hour here is one you won't have to fight for later.","Keep the water coming. The easy part is working for you.","Still normal, still going. That's the whole job right now."],
+3:["This is the hard bit, and you're in it. It gets easier from here.","Hunger peaks here, then fades. You've got this.","Most people stop right here. You're still going.","Salt, a walk, and an hour. You're nearly through The Switch."],
+4:["You're past 16 hours. That's the part most people never reach.","Your brain is on ketones now. Calm, clear, and all yours.","Whatever you decide next, this already counts.","Cold hands, clear head. You're deep in the good part."],
+5:["A full day. That's a real thing you did.","Hunger has gone quiet. Rest, salt, and enjoy the calm.","You're in rare territory. Be gentle with yourself in it."],
+6:["Two days. Steady now, and keep listening to your body.","Stand slowly, keep the salt up. Few people get here."],
+7:["This is far enough. Ending well is the win now."],
+};
+const cheerFor=(h,planned)=>{ const left=planned-h; if(left<=0) return `You did your ${planned} hours. Eat when you're ready, and eat gently.`; if(left<1) return 'Under an hour to go. Finish gently.'; const l=CHEER[stageFor(h).n]; return l[Math.floor(h)%l.length]; };
+const PROTOCOLS=[
+{id:'12:12',name:'12:12',hours:12,note:'Gentle start'},
+{id:'14:10',name:'14:10',hours:14,note:'Easy daily rhythm'},
+{id:'16:8',name:'16:8',hours:16,note:'The classic'},
+{id:'18:6',name:'18:6',hours:18,note:'Reaches ketosis most days'},
+{id:'20:4',name:'20:4',hours:20,note:'One short window'},
+{id:'omad',name:'OMAD',hours:23,note:'One meal a day'},
+{id:'24',name:'24 h',hours:24,note:'Dinner to dinner'},
+{id:'36',name:'36 h',hours:36,long:true,note:'Overnight, a day, overnight'},
+{id:'48',name:'48 h',hours:48,long:true,note:'Two days'},
+{id:'72',name:'72 h',hours:72,long:true,note:'The cap'},
+];
+const CATS=['science','nutrition','movement','self-care','mindset','craving rescue'];
+// what sleeping through part of a fast does, shown on the Stages tab
+const SLEEP={title:'Sleep and the fast',body:"Sleep is the easiest stretch of any fast. Eight hours asleep is a third of a 24-hour fast done without a single hunger cue, growth hormone peaks in deep sleep and helps protect muscle, and most of The Switch handover happens while you rest. Skip dinner and go to bed, and you wake up past the first hunger wave before the day starts.",watch:"Two things to watch. A short night raises ghrelin, the hunger hormone, so the next day feels hungrier than the fast alone would; go gentler. And past 24 hours, set the night up: salted water by the bed, a light blanket because you run cooler, and stand up slowly if you get up."};
+const TRIGGER_CHIPS=['headache','foggy','dizzy','nauseous','irritable','cramps','poor sleep','stressed','worked out'];
+const CHIPS=['headache','foggy','dizzy','nauseous','jittery','cold','cramps','irritable','focused','calm','energised','great sleep','poor sleep','stressed','worked out'];
+
+// s: stage (0 = any) · c: category · t: trigger · d: time of day · f: protocol fit · b: body
+// append-only: the feed stores tip indices, so never insert or remove mid-list
+const T=(s,c,t,d,f,b)=>({s,c,t,d,f,b});
+const TIPS=[
+T(1,'nutrition','none','any','any',"Your last meal is still doing its work. Have a glass of water now, not to fill up, but to start the fast ahead on hydration."),
+T(1,'mindset','none','any','any',"Take a moment and name why you're fasting today. One word is enough. You'll lean on it around hour 14."),
+T(1,'movement','none','any','any',"A short walk after eating helps the meal settle and smooths out the sugar bump. Shoes on, no pace goal."),
+T(1,'science','none','any','any',"Right now insulin is high and your body is busy storing the meal. Nothing to do yet. The interesting part starts around hour 12."),
+T(1,'self-care','none','evening','any',"If this fast runs overnight, set the kitchen up for tomorrow: water bottle filled, coffee ready. Morning you will be glad."),
+T(1,'nutrition','none','any','any',"Black coffee, plain tea and sparkling water are all fine during your fast. If you want a taste, a squeeze of lemon won't hurt."),
+T(1,'craving rescue','strong cravings','any','any',"Cravings this early usually mean the meal was sweet or small. Drink water, wait ten minutes, and notice whether it's hunger or habit."),
+T(1,'self-care','stressed','any','any',"Stressed before you've even started is a real thing. Three slow breaths, shoulders down. The fast will ask less of you than today did."),
+T(1,'mindset','low mood','any','any',"Low mood at the start isn't a sign of anything. It's just where you are today. Start anyway and keep the plan small."),
+T(1,'movement','worked out','any','any',"You trained and then ate, which is the right order. Rest tonight and let the fast do the quiet work."),
+T(2,'nutrition','none','morning','any',"Coffee and tea are fine, black. If you take yours with milk, a splash is okay for most people; it's the sugar that ends the fast."),
+T(2,'nutrition','none','any','any',"Add a pinch of salt to your water, or sip an unsweetened electrolyte. Most early-fast headaches are a salt problem, not a food problem."),
+T(2,'science','none','any','any',"Your liver is running on stored glycogen right now, which is why you feel normal. That store starts to run low around hour 12."),
+T(2,'movement','none','midday','any',"This is a good window for your usual workout. Energy is steady, so lift, run or stretch the way you normally would."),
+T(2,'self-care','none','evening','any',"Fasting overnight? Dim the lights and head to bed a little early. Good sleep makes tomorrow's hours noticeably easier."),
+T(2,'mindset','none','any','any',"The first hunger wave usually shows up between hour 10 and 12. It rises, it fades. Knowing it's coming takes most of its power away."),
+T(2,'craving rescue','strong cravings','any','any',"Brush your teeth. It sounds odd, but a clean, minty mouth cuts cravings faster than almost anything. Then drink some water."),
+T(2,'nutrition','high hunger','any','any',"Hunger before hour 12 is usually habit, not need. Warm water or a cup of herbal tea gives your hands and stomach something to do."),
+T(2,'self-care','headache','any','any',"A headache this early is most often salt or caffeine. Water with a pinch of salt first. If you usually have coffee, have it."),
+T(2,'mindset','low energy','any','any',"A dip in energy here is normal, especially mid-afternoon. Stand up, get some daylight, and stay off the sofa for ten minutes."),
+T(2,'self-care','poor sleep','any','any',"Short night? Go easy today. Keep the fast, skip the hard workout, and drink more water than usual."),
+T(2,'mindset','foggy','any','any',"Foggy at this stage is usually a hydration thing. Big glass of water, a few minutes outside, then come back to the task."),
+T(2,'science','none','night','any',"Sleeping through this stage is the easiest way to do it. Your liver quietly works through its glycogen while you rest."),
+T(2,'movement','none','morning','any',"A walk before your first coffee is a small, pleasant way to spend an hour of your fast. Daylight early also helps tonight's sleep."),
+T(3,'craving rescue','strong cravings','evening','any',"Cravings peak right about now, then fade. Pour a big glass of water with a pinch of salt and step outside for five minutes. It passes faster when you move."),
+T(3,'science','none','any','any',"Around now your glycogen runs low and your body switches to fat for fuel. The hunger you feel is the handover, not an emergency."),
+T(3,'self-care','headache','any','any',"That headache is normal at hour 14. Here's what helps: water with a pinch of salt, a slow walk, and a little patience. It usually lifts within the hour."),
+T(3,'movement','none','any','any',"Gentle movement makes The Switch smoother. A walk, some stretching, a few flights of stairs. Nothing that leaves you breathless."),
+T(3,'mindset','none','any','any',"This is the hardest stretch of a short fast, and you're in it. Most people who stop, stop here. Water, salt, a walk, and you're through it in a couple of hours."),
+T(3,'nutrition','high hunger','any','any',"Hunger peaks in this stage and then genuinely fades. Sip something warm and salty, and give it twenty minutes before you decide anything."),
+T(3,'self-care','low energy','any','any',"Low energy at The Switch is your body between fuel sources. Sit down, drink water, and don't make big decisions for an hour."),
+T(3,'mindset','low mood','any','any',"Cranky around hour 14 is so common we almost named the stage after it. Tell someone you're fasting so they know, then be kind to yourself."),
+T(3,'self-care','foggy','any','any',"Brain fog here is temporary. Your brain is about to get a cleaner fuel. Do easy tasks for an hour and save the thinking for later."),
+T(3,'craving rescue','none','any','any',"If a craving hits, name the food out loud. Then ask whether you'd eat an apple instead. If not, it's a craving, not hunger, and it will pass."),
+T(3,'science','none','night','any',"If you're sleeping through The Switch, good plan. Most of the handover happens while you rest, and you wake up on the other side."),
+T(3,'self-care','stressed','any','any',"Stress makes this stage louder. Five minutes with your phone face down and your eyes closed does more than you'd think."),
+T(3,'nutrition','none','any','any',"Salt is the quiet hero of hours 12 to 16. A pinch in water, or a cup of warm bouillon if you're flexible about it, settles most of the wobble."),
+T(3,'movement','poor sleep','any','any',"Tired and at The Switch is a tough pairing. Skip anything hard today. A slow walk in daylight is the whole workout."),
+T(3,'mindset','none','morning','short',"If you fasted overnight, you're waking up right at The Switch. Water first, then coffee, and your eating window is only a few hours away."),
+T(4,'science','none','any','any',"Your liver is now making ketones and your brain has started using them. That calm, clear feeling is real, and it's yours."),
+T(4,'movement','poor sleep','any','any',"Short night plus hour 18 is a real combo. Skip the workout today; a slow walk and an early bedtime will do more for you than pushing."),
+T(4,'self-care','none','any','any',"Cold hands around now are normal. Your body is trimming heat to save energy. Warm tea, a jumper, and a little movement sort it out."),
+T(4,'movement','none','midday','any',"Light movement feels good in ketosis. A walk or easy yoga. Leave the heavy lifting for after you've eaten."),
+T(4,'mindset','none','any','any',"You're past 16 hours. Whatever happens next, you've done the part most people never reach. Take that in."),
+T(4,'nutrition','none','any','any',"Thinking about breaking the fast? Start gentle: eggs, soup, yogurt or some fruit. Then wait twenty minutes before the bigger meal."),
+T(4,'self-care','headache','any','any',"A headache in ketosis is nearly always salt and water. Fix that first. If it's severe or comes with dizziness, end the fast and eat."),
+T(4,'mindset','low mood','any','any',"Low mood this deep in is worth noticing. If it's a passing dip, a walk helps. If it's heavier than that, eat something and rest. Both are fine."),
+T(4,'craving rescue','strong cravings','any','any',"Cravings this late are usually boredom or routine, not hunger. Change the room you're in, drink water, and do one small task."),
+T(4,'self-care','stressed','any','any',"Stress and fasting both raise cortisol. Keep today's load light where you can, and don't add a hard workout on top."),
+T(4,'movement','worked out','any','any',"You trained in ketosis. Nice. Break your fast within a couple of hours with protein and something salty, and drink extra water."),
+T(4,'science','none','evening','any',"Overnight in ketosis is where the quiet work happens: steady fuel, lower insulin, better repair. Sleep is part of the fast."),
+T(4,'nutrition','high hunger','any','any',"Hunger in ketosis usually comes in short waves. Salted water, then ten minutes doing something with your hands. If it stays, eating is fine."),
+T(4,'self-care','low energy','any','any',"Energy dips in ketosis are usually electrolytes. Salt, and magnesium if you have it. If you're still flat in an hour, eat and rest."),
+T(4,'mindset','foggy','any','any',"Fog at hour 18 or so is usually water, salt or sleep. Fix the easy one first. Clear focus is the normal state here, so a dip stands out."),
+T(5,'science','none','any','any',"Autophagy, your cells' recycling process, likely ramps up through this stage. The research is still young, so we say 'likely', not 'now'."),
+T(5,'self-care','none','any','any',"Rest is the move. Electrolytes, water, slow walks, early nights. This isn't the time to prove anything."),
+T(5,'nutrition','none','any','any',"Salt, potassium and magnesium matter more now. An unsweetened electrolyte drink once or twice today keeps headaches and cramps away."),
+T(5,'mindset','none','any','any',"Hunger usually goes quiet in this stage. Enjoy it, and write a line or two about how you feel. Your next long fast will thank you."),
+T(5,'self-care','low energy','any','any',"Low energy on a long fast is a signal, not a hurdle. Sit, drink electrolytes, and if it doesn't lift within the hour, it's fine to end here."),
+T(5,'movement','none','any','any',"Walks only today. Your body is sparing fuel, and a hard session now costs more than it gives."),
+T(6,'self-care','none','any','any',"Stand up slowly. Dizziness on standing is common here. If it lasts more than a moment, sit, drink salted water, and consider ending."),
+T(6,'nutrition','none','any','any',"Keep salt and electrolytes steady today. Your body is sparing protein and running on ketones, and it needs the minerals to do it well."),
+T(6,'mindset','none','any','any',"If you haven't checked in with a doctor about fasting this long, now's the time. Longer fasts deserve a second opinion."),
+T(6,'science','none','any','any',"Ketones are your main fuel now and your body is protecting muscle. Light, clear, a bit floaty is the usual report."),
+T(7,'self-care','none','any','any',"Past 72 hours, refeeding carefully matters as much as the fast. Plan the first meal now: small, salty, soft protein, then wait."),
+T(7,'mindset','none','any','any',"Fasts this long should have a doctor in the loop. If you don't have one, please end the fast and get one before trying again."),
+T(0,'mindset','stressed','any','any',"Stressed is a reason to be gentler, not stricter. Keep the fast if it feels okay, shorten it if it doesn't. Both count."),
+T(0,'self-care','poor sleep','any','any',"Poor sleep makes every hour feel longer. Drink more water today, keep caffeine early, and go to bed before you think you need to."),
+T(0,'movement','worked out','any','any',"You moved today. Any time you train while fasting, add an extra glass of water with salt and listen a little harder to your body."),
+T(0,'self-care','low mood','any','any',"A low day is allowed. Fasting doesn't have to be the thing you push through today. If ending early helps, that's a good decision, not a slip."),
+T(0,'self-care','dizzy','any','any',"Dizzy, especially on standing, is usually salt and water. Sit down, drink a glass of water with a pinch of salt, and get up slowly. If it doesn't pass, eat something."),
+T(0,'mindset','dizzy','any','any',"If dizziness keeps coming back during fasts, that's your body asking for a shorter one. Ending early today is a good call, not a slip."),
+T(0,'self-care','nauseous','any','any',"Nausea on a fast is usually too little salt or coffee on an empty stomach. Sip water with a pinch of salt, ease off the caffeine, and sit somewhere cool. If it turns into vomiting, stop and eat."),
+T(0,'mindset','nauseous','any','any',"Queasy is a signal worth respecting. Give it twenty minutes with water and fresh air. If it doesn't ease, ending early is the right call, not a slip."),
+T(0,'mindset','irritable','any','any',"A short fuse around now is normal, and it passes. Tell the people near you that you're fasting, step away from the hard conversations for an hour, and drink some water."),
+T(0,'self-care','irritable','any','any',"Irritable usually travels with hungry and tired. A walk outside and a glass of salted water fix more of it than you'd expect."),
+T(0,'self-care','cramps','any','any',"Muscle cramps on a fast are nearly always magnesium and salt. Salted water now, magnesium if you have it, and stretch the muscle slowly."),
+T(0,'nutrition','cramps','any','any',"If cramps keep showing up during fasts, start an unsweetened electrolyte drink earlier next time, before hour 8 rather than after the cramp."),
+T(0,'science','none','evening','any',"Sleep is part of the fast. Eight hours asleep is a third of a 24-hour fast done without noticing, and growth hormone peaks in deep sleep, which helps protect muscle."),
+T(0,'mindset','none','evening','any',"Skipping dinner and going to bed is the easiest stretch in fasting. You wake up twelve or more hours in, past the first hunger wave, before the day has even started."),
+T(0,'nutrition','none','evening','any',"Before bed on a fast: a glass of water with a pinch of salt, and another by the bed. It keeps the 3 am headache away and makes the morning easier."),
+T(0,'self-care','none','night','any',"Up in the night on a fast? Stand slowly, sip some water, and go back to bed. Lying awake hungry passes faster than it feels; the wave is short."),
+T(0,'science','none','morning','any',"You did most of the last stage asleep. Hunger hormones are lowest first thing, so this is the easiest hour of the day to keep going."),
+T(5,'self-care','none','evening','any',"Past 24 hours, set the night up: salted water by the bed, a light blanket because you run cooler, and stand up slowly if you get up. A long fast should feel boring at night."),
+T(0,'science','poor sleep','any','any',"A short night raises ghrelin, the hunger hormone, and lowers leptin, the full signal, so today feels hungrier than the fast alone would. That's biology, not weakness. Go gentler."),
+];
+const STAGE_CARDS={
+1:"Your fast has started. Your body is still working on your last meal, so there's nothing to do yet except drink some water and go about your day.",
+2:"You're in Steady. Insulin has dropped and your liver is fuelling you from stored glycogen. Most people feel completely normal here.",
+3:"You've reached The Switch. Glycogen is running low and your body is moving to fat for fuel. Hunger peaks here, then fades. Salt, water, and keep moving.",
+4:"You've entered Ketosis. Your liver is making ketones and your brain is starting to use them. Expect calmer focus and less hunger.",
+5:"You're in Reset. Past 24 hours, repair processes likely ramp up and hunger mostly goes quiet. Rest, electrolytes, gentle walks.",
+6:"You're in Deep. Ketones are your main fuel now. Stand up slowly, keep salt steady, and keep a doctor in the loop.",
+7:"You've passed 72 hours. This is as far as the app goes. Please end your fast, refeed carefully, and talk to a doctor before going longer.",
+};
+const REFEED={
+1:"Short one, easy landing. Eat your normal meal. A glass of water first, and go a little slower than usual.",
+2:"Eat your normal meal, a little slower than usual. A glass of water first.",
+3:"Break it with something gentle: eggs, soup, yogurt. If you're still hungry twenty minutes later, have your normal meal.",
+4:"Start small and gentle: eggs, broth, yogurt, a piece of fruit. Wait twenty minutes before the bigger plate. Salt helps.",
+5:"After 24 hours, go slow. A small, salty, protein-based meal first: eggs, fish, soup. Wait an hour, then keep the next meal moderate too.",
+6:"After 48 hours, refeed over the rest of the day. Broth, soft protein, cooked vegetables. Small portions, no big carb load, plenty of salt and water.",
+7:"Past 72 hours, refeed over two or three days. Broth and soft protein first, small portions, no large meals. If you feel unwell, get medical help.",
+};
+const OUTCOME={completed:'Done','ended early':'Still counts',extended:'Went long'};
+const INTRO="The ring fills as the hours pass and changes colour with each stage. Tap it any time to see what's coming. Your first check-in prompt arrives around hour 4.";
+const REFRAME=h=>`You did ${h} hours, and that counts. Eat something gentle, take a note on what made it hard, and we'll set the next one up so it's easier.`;
+const STOP_SIGNS=['Fainting or near-fainting','Chest pain','Confusion','Vomiting','Severe weakness'];
+const STOP_COPY="Stop your fast, eat something, and get medical help if this doesn't pass.";
+const NO_FAST=['Pregnant or breastfeeding','Under 18','A history of an eating disorder','Type 1 diabetes, or on insulin or sulfonylureas','Underweight','Recovering from surgery','Advised against fasting by a doctor'];
+// the gentle reminder before the stop signs: this is your choice, and stopping is one of the choices
+const YOUR_CALL=[
+"You chose this. You set the rules, and you can change them. Stopping now is a choice too, and a fine one.",
+"Nobody is making you do this. That's what makes it yours, and it also means you can end it whenever you decide.",
+"This is your fast, on your terms. Keep going if it feels right. Stop if it doesn't. Both are you keeping your word to yourself.",
+"You can always try again. Tomorrow, next week, next month. The next one can go longer. This one only has to be what it is.",
+"You picked the hours. You can keep them, shorten them, or stretch them next time. There's no version of this where you lost.",
+"Pushing on is a choice. So is stopping. Make it on purpose, and it counts either way.",
+];
+const yourCall=h=>YOUR_CALL[Math.floor(h)%YOUR_CALL.length];
+const NO_FAST_COPY="Fasting isn't right for everyone. If any of these apply, please talk to your doctor before using this app.";
+
+/* ---------- state ---------- */
+const DAY=864e5, HOUR=36e5, KEY='fasting-bestie';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fresh=()=>({onboarded:false,protocol:'16:8',customHours:16,alerts:false,fast:null,fasts:[],checkins:[],feed:[]});
+function sanitize(raw){ const s=Object.assign(fresh(),raw&&typeof raw==='object'?raw:{});
+  for(const k of ['fasts','checkins','feed']) if(!Array.isArray(s[k])) s[k]=[];
+  s.fasts=s.fasts.filter(f=>f&&f.endAt>f.startAt); s.checkins=s.checkins.filter(c=>c&&c.at>0);
+  for(const e of s.feed) if(e&&e.kind==='tip'&&!e.text&&TIPS[e.tip]){ e.text=TIPS[e.tip].b; e.cat=TIPS[e.tip].c; }
+  s.feed=s.feed.filter(e=>e&&e.kind&&(e.kind!=='tip'||e.text)&&(e.kind!=='stage'||STAGES[e.stage-1]));
+  if(!(s.customHours>=4&&s.customHours<=72)) s.customHours=16;
+  if(!PROTOCOLS.some(p=>p.id===s.protocol)&&s.protocol!=='custom') s.protocol='16:8';
+  const f=s.fast; if(f&&f.startAt>0&&f.hours>0){ f.lastStage=f.lastStage||0; f.lastTipHour=Number.isFinite(f.lastTipHour)?f.lastTipHour:-1; } else s.fast=null;
+  return s; }
+let state=load(), view='home', ob=0, pendingStart=null, saveWarned=false;
+function load(){ let s={}; try{ s=JSON.parse(localStorage.getItem(KEY)||'{}') }catch{} return sanitize(s); }
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)) }catch{ if(!saveWarned){ saveWarned=true; toast("Can't save on this device. This fast will be lost when you close the page.",6000); } } }
+
+/* ---------- pure logic ---------- */
+function stageFor(h){ return STAGES.find(s=>h<s.to)||STAGES[6]; }
+function fitFor(h){ return h<=16?'short':h<=24?'medium':'long'; }
+function todFor(d){ const h=new Date(d).getHours(); return h<5?'night':h<11?'morning':h<17?'midday':h<22?'evening':'night'; }
+function elapsedHours(f,now){ return Math.max(0,(now-f.startAt)/HOUR); }
+function plannedHours(){ const p=PROTOCOLS.find(p=>p.id===state.protocol); return p?p.hours:state.customHours; }
+function protocolLabel(id,hours){ const p=PROTOCOLS.find(p=>p.id===id); return p?p.name:`Custom ${hours} h`; }
+function triggersFor(ci){ const t=[]; if(ci.energy<=2)t.push('low energy'); if(ci.mood<=2)t.push('low mood'); if(ci.cravings===2)t.push('strong cravings'); if(ci.hunger>=4)t.push('high hunger'); for(const c of ci.chips||[]) if(TRIGGER_CHIPS.includes(c)) t.push(c); return t; }
+function pickTip(ctx,rand=Math.random){
+  const pick=a=>a[Math.floor(rand()*a.length)];
+  // ponytail: the 14-day no-repeat rule is a preference, not a filter, until the library nears 40 tips a stage; otherwise the least recently shown tip wins
+  const choose=a=>{ const unseen=a.filter(i=>!ctx.recent.has(i)); return unseen.length?pick(unseen):a.slice().sort((x,y)=>(ctx.recent.get(x)||0)-(ctx.recent.get(y)||0))[0]; };
+  const fits=t=>(t.s===0||t.s===ctx.stage)&&(t.f==='any'||t.f===ctx.fit)&&(t.d==='any'||t.d===ctx.tod);
+  const idx=TIPS.map((t,i)=>fits(t)?i:-1).filter(i=>i>=0);
+  const trig=idx.filter(i=>ctx.triggers.includes(TIPS[i].t));
+  if(trig.length) return choose(trig);
+  const plain=idx.filter(i=>TIPS[i].t==='none'), rot=plain.filter(i=>TIPS[i].c!==ctx.lastCat), pool=rot.length?rot:plain;
+  return pool.length?choose(pool):-1;
+}
+// one live tip per category for the current stage, protocol fit, time of day and triggers; rotates by the hour so the set changes without shuffling every second
+function liveFor(ctx,h){ const fits=t=>(t.s===0||t.s===ctx.stage)&&(t.f==='any'||t.f===ctx.fit)&&(t.d==='any'||t.d===ctx.tod);
+  return CATS.map(c=>{ const idx=TIPS.map((t,i)=>fits(t)&&t.c===c?i:-1).filter(i=>i>=0), trig=idx.filter(i=>ctx.triggers.includes(TIPS[i].t)), pool=trig.length?trig:idx.filter(i=>TIPS[i].t==='none');
+    if(!pool.length) return null; const i=pool[Math.floor(h)%pool.length]; return {cat:c,tip:i,why:trig.length?`Because you logged ${TIPS[i].t}`:`For ${STAGES[ctx.stage-1].name}, ${ctx.tod}`}; }).filter(Boolean); }
+function outcomeFor(h,planned){ return h<planned?'ended early':h>=planned+2?'extended':'completed'; }
+function dur(f){ return (f.endAt-f.startAt)/HOUR; }
+function streak(fasts,now){
+  const key=t=>new Date(t).toDateString(), days={};
+  for(const f of fasts){ const mark=t=>{ const k=key(t); days[k]=(days[k]==='completed'||f.outcome!=='ended early')?'completed':'early'; };
+    mark(f.endAt); if(f.outcome!=='ended early') for(let t=f.endAt-DAY;t>f.startAt;t-=DAY) mark(t); }
+  const d=new Date(now); d.setHours(12,0,0,0);
+  if(!days[key(d)]) d.setDate(d.getDate()-1);
+  let n=0; const slips=[];
+  for(;;){ const o=days[key(d)]; if(!o) break;
+    if(o==='early'){ if(slips.some(s=>Math.abs(s-d.getTime())<7*DAY)) break; slips.push(d.getTime()); }
+    n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function badgesFor(fasts){ const b=[];
+  if(fasts.some(f=>f.outcome!=='ended early')) b.push({name:'Broke through',why:'First fast completed',color:'#E6C99A'});
+  if(fasts.some(f=>dur(f)>=16)) b.push({name:'Through The Switch',why:'First 16 hours',color:'#E3B23C'});
+  if(fasts.some(f=>dur(f)>=24)) b.push({name:'A full day',why:'First 24 hours',color:'#C4613A'});
+  return b; }
+// a fast counts as rough if it ended early or any check-in in it logged low energy, dizzy, headache or foggy
+function roughFast(f,checkins){ return f.outcome==='ended early'||checkins.some(c=>c.fastStart===f.startAt&&(c.energy<=2||(c.chips||[]).some(x=>['dizzy','headache','foggy','nauseous'].includes(x)))); }
+// spec's eating-disorder screen: three 24 h+ fasts in a row whose check-ins average mood 2 or lower pause longer fasts
+function lowMoodLong(fasts,checkins){ const last=fasts.slice(-3);
+  return last.length===3&&last.every(f=>{ const m=checkins.filter(c=>c.fastStart===f.startAt&&c.mood); return f.planned>=24&&m.length>0&&m.reduce((a,c)=>a+c.mood,0)/m.length<=2; }); }
+
+/* ---------- engine ---------- */
+function lastCheckin(){ const f=state.fast; if(!f) return null; const c=state.checkins.filter(c=>c.fastStart===f.startAt); return c.length?c[c.length-1]:null; }
+function checkinDue(now){ const f=state.fast; if(!f) return false; const h=elapsedHours(f,now); if(h<4) return false; const l=lastCheckin(); if(!l) return true; return now-l.at>4*HOUR || stageFor(elapsedHours(f,l.at)).n!==stageFor(h).n; }
+function pushFeed(e){ if(e.kind==='tip'){ e.text=TIPS[e.tip].b; e.cat=TIPS[e.tip].c; }
+  state.feed.push(Object.assign({id:String(Date.now())+Math.random().toString(36).slice(2,6),at:Date.now(),fastStart:state.fast?state.fast.startAt:null,saved:false},e)); while(state.feed.length>300){ const i=state.feed.findIndex(x=>!x.saved); if(i<0) break; state.feed.splice(i,1); } notify(e); }
+const isNight=t=>{ const h=new Date(t).getHours(); return h>=23||h<6; };
+function alertsStatus(){ if(!('Notification' in window)) return 'none'; if(Notification.permission==='denied') return 'blocked'; return Notification.permission==='granted'&&state.alerts?'on':'off'; }
+function notify(e){ if(alertsStatus()!=='on'||!document.hidden||isNight(Date.now())) return;
+  const title=e.kind==='stage'?STAGES[e.stage-1].name:e.kind==='tip'?e.cat[0].toUpperCase()+e.cat.slice(1):e.kind==='done'?'Break it well':'Fast Forward';
+  try{ new Notification(title,{body:e.text,tag:'fasting-bestie'}); }catch{} }
+function ctxNow(now){ const f=state.fast, h=elapsedHours(f,now);
+  const recent=new Map(state.feed.filter(e=>e.kind==='tip'&&now-e.at<14*DAY).map(e=>[e.tip,e.at]));
+  const lastTip=[...state.feed].reverse().find(e=>e.kind==='tip'); const ci=lastCheckin();
+  return {stage:stageFor(h).n,fit:fitFor(f.hours),tod:todFor(now),recent,lastCat:lastTip?lastTip.cat:null,triggers:ci&&now-ci.at<3*HOUR?triggersFor(ci):[]}; }
+function deliverDue(now){ const f=state.fast; if(!f) return false; let changed=false;
+  const h=elapsedHours(f,now), st=stageFor(h), hour=Math.floor(h);
+  for(let n=f.lastStage+1;n<=st.n;n++){ pushFeed({kind:'stage',stage:n,text:STAGE_CARDS[n],at:Math.max(f.startAt+STAGES[n-1].from*HOUR,f.startAt)}); f.lastStage=n; f.lastTipHour=Math.max(f.lastTipHour,hour); changed=true; }
+  if(!f.doneAt&&h>=f.hours){ pushFeed({kind:'done',text:`That's your ${f.hours} hours. Tap End fast when you eat. ${REFEED[st.n]}`}); f.doneAt=now; changed=true; }
+  if(f.lastTipHour<hour){ const ctx=ctxNow(now), t=pickTip(ctx); if(t>=0) pushFeed({kind:'tip',tip:t,stage:ctx.stage}); f.lastTipHour=hour; changed=true; }
+  if(changed) save(); return changed; }
+function requestStart(startAt){ if(plannedHours()<=24) startFast(startAt); else if(lowMoodLong(state.fasts,state.checkins)) openSheet(pausedSheet()); else { pendingStart=startAt; openSheet(longSheet()); } }
+function startFast(startAt){ state.onboarded=true; state.fast={startAt,hours:plannedHours(),protocol:state.protocol,lastStage:0,lastTipHour:-1};
+  deliverDue(Date.now());
+  if(!state.fasts.length&&!state.feed.some(e=>e.kind==='intro')) pushFeed({kind:'intro',text:INTRO});
+  save(); closeSheet(); view='home'; render(); }
+function endFast(){ const f=state.fast, now=Date.now(), h=elapsedHours(f,now), before=badgesFor(state.fasts).length;
+  const rec={startAt:f.startAt,endAt:now,planned:f.hours,protocol:f.protocol,outcome:outcomeFor(h,f.hours)};
+  state.fasts.push(rec); if(rec.outcome==='ended early') pushFeed({kind:'reframe',text:REFRAME(Math.floor(h))});
+  const st=stageFor(h); state.fast=null; save();
+  return {rec,h,st,newBadges:badgesFor(state.fasts).slice(before)}; }
+function saveCheckin(){ const f=state.fast; if(!f) return; const now=Date.now();
+  const val=g=>{ const b=$(`[data-group="${g}"] .on`); return b?Number(b.dataset.v):null; };
+  const ci={fastStart:f.startAt,at:now,energy:val('energy'),mood:val('mood'),cravings:val('cravings'),hunger:val('hunger'),chips:[...document.querySelectorAll('[data-group="chips"] .on')].map(b=>b.dataset.v),note:$('#ci-note').value.trim().slice(0,500)};
+  state.checkins.push(ci);
+  const trig=triggersFor(ci);
+  if(trig.length){ const ctx=ctxNow(now); const t=pickTip(ctx); if(t>=0&&ctx.triggers.includes(TIPS[t].t)){ pushFeed({kind:'tip',tip:t,stage:ctx.stage}); f.lastTipHour=Math.floor(elapsedHours(f,now)); } }
+  save(); closeSheet(); toast('Check-in saved'); render(); }
+
+/* ---------- formatting ---------- */
+function fmtDur(h){ const m=Math.round(h*60); return `${Math.floor(m/60)}h ${String(m%60).padStart(2,'0')}m`; }
+function fmtTime(t){ return new Date(t).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'}); }
+function fmtWhen(t){ const d=new Date(t); return (d.toDateString()===new Date().toDateString()?'':d.toLocaleDateString([],{weekday:'short'})+' ')+fmtTime(t); }
+function fmtDate(t){ return new Date(t).toLocaleDateString([],{weekday:'short',day:'numeric',month:'short'}); }
+function arc(cx,cy,r,a0,a1){ const p=a=>{const t=(a-90)*Math.PI/180;return [cx+r*Math.cos(t),cy+r*Math.sin(t)]}; const [x0,y0]=p(a0),[x1,y1]=p(a1); return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1-a0>180?1:0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`; }
+// the hours of a fast that fall in the usual sleep window, 23:00 to 07:00, as [from,to] in elapsed hours
+function sleepSpans(startAt,planned){ const out=[]; if(!startAt) return out; const end=startAt+planned*HOUR, d=new Date(startAt); d.setDate(d.getDate()-1); d.setHours(23,0,0,0);
+  for(;d.getTime()<end;d.setDate(d.getDate()+1)){ const a=Math.max(startAt,d.getTime()), b=Math.min(end,d.getTime()+8*HOUR); if(b>a) out.push([(a-startAt)/HOUR,(b-startAt)/HOUR]); } return out; }
+function ringSvg(elapsed,planned,startAt){ const R=130,C=150,W=22,gap=3,deg=h=>h/planned*360; let out='';
+  for(const [a,b] of sleepSpans(startAt,planned)){ const a0=deg(a), a1=Math.min(deg(b),a0+359.5); if(a1>a0+.2) out+=`<path d="${arc(C,C,108,a0,a1)}" stroke="#8B85C9" stroke-opacity=".6" stroke-width="8" stroke-linecap="round" fill="none"/>`; }
+  const cur=stageFor(Math.min(elapsed,planned-.001)).n;
+  for(const s of STAGES){ const a=s.from, b=Math.min(planned,s.to); if(b<=a) continue;
+    const a0=deg(a)+gap/2, a1=Math.min(deg(b)-gap/2,a0+359.5); if(a1<=a0) continue; const w=s.n===cur?W+10:W;
+    out+=`<path d="${arc(C,C,R,a0,a1)}" stroke="${s.color}" stroke-opacity=".28" stroke-width="${w}" fill="none"/>`;
+    const f1=Math.min(a1,Math.max(a0,deg(Math.min(elapsed,b))-gap/2));
+    if(f1>a0+.2) out+=`<path d="${arc(C,C,R,a0,f1)}" stroke="${s.color}" stroke-width="${w}" fill="none"/>`;
+  }
+  return `<svg viewBox="0 0 300 300" aria-hidden="true">${out}</svg>`; }
+function face(k){ const m=['M9 17q3-3 6 0','M9 16.5q3-1.5 6 0','M9 16h6','M9 15.5q3 1.5 6 0','M9 15q3 3 6 0'][k-1];
+  return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><circle cx="9" cy="10" r=".9" fill="currentColor"/><circle cx="15" cy="10" r=".9" fill="currentColor"/><path d="${m}"/></svg>`; }
+
+/* ---------- views ---------- */
+// the tint blends from one stage colour to the next as the hours pass, and deepens as the planned fast nears its end
+const hexRgb=c=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16));
+function mix(a,b,t){ const A=hexRgb(a),B=hexRgb(b); return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join(''); }
+function tintFor(h){ const s=stageFor(h), next=STAGES[s.n]||s, span=(s.to===Infinity?24:s.to)-s.from, t=Math.min(1,Math.max(0,(h-s.from)/span)); return {color:mix(s.color,next.color,t),ink:t<.5?s.ink:next.ink}; }
+function setTint(){ const f=state.fast, h=f?elapsedHours(f,Date.now()):0, c=f?tintFor(h):null, r=document.documentElement.style;
+  r.setProperty('--stage',c?c.color:'var(--surface-2)'); r.setProperty('--stage-ink',c?c.ink:'var(--ink)');
+  r.setProperty('--accent',(c||STAGES[0]).color); r.setProperty('--accent-ink',(c||STAGES[0]).ink);
+  r.setProperty('--tint',c?String(.18+.3*Math.min(1,h/f.hours)):'.28');
+  const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content=c?c.color:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(); }
+function render(){ const v=$('#view'), tabs=$('#tabs'); setTint();
+  if(!state.onboarded){ tabs.hidden=true; v.innerHTML=onboardingHtml(); return; }
+  tabs.hidden=false;
+  v.innerHTML=(location.hash==='#test'?selftestHtml():'')+{home:homeHtml,stages:stagesHtml,tips:tipsHtml,history:historyHtml}[view]();
+  tabs.querySelectorAll('button').forEach(b=>b.toggleAttribute('aria-current',b.dataset.tab===view)); }
+function topBar(title){ return `<header class="top"><div class="brand">${esc(title)}</div><button class="link small" data-act="open-settings">Settings</button></header>`; }
+function cardHtml(e){ let eyebrow,body,color,stageCls='';
+  if(e.kind==='tip'){ eyebrow=e.cat; body=e.text; color=STAGES[(e.stage||1)-1].color; }
+  else if(e.kind==='stage'){ const s=STAGES[e.stage-1]; eyebrow=s.name; body=e.text; color=s.color; stageCls='is-stage'; }
+  else { eyebrow={intro:'Welcome',reframe:'That counts',done:'Break it well'}[e.kind]||''; body=e.text; }
+  return `<article class="card feed-card ${stageCls}" style="--c:${color||'var(--muted)'}"><div class="eyebrow"><i class="dot"></i>${esc(eyebrow)}</div><p>${esc(body)}</p><div class="muted small" style="margin-top:8px">${fmtWhen(e.at)}</div></article>`; }
+function stopSigns(){ return `<details class="card warn-card"><summary>Stop signs</summary><ul>${STOP_SIGNS.map(s=>`<li>${s}</li>`).join('')}</ul><p>${STOP_COPY}</p></details>`; }
+function homeHtml(){ const now=Date.now(), f=state.fast;
+  if(!f){ const last=state.fasts[state.fasts.length-1]; const ph=plannedHours(), close=last&&ph<24?last.endAt+(24-ph)*HOUR:0;
+    return topBar('Fast Forward')+`<section class="hero"><h1 class="display">Ready when you are.</h1><p class="muted">${close>now?`Your eating window runs to about ${fmtWhen(close)}. `:''}Start when you finish your last meal.</p>
+    <div class="stack"><button class="chip" data-act="open-protocol" style="align-self:flex-start">${esc(protocolLabel(state.protocol,ph))} · ${ph} h fast</button>
+    <div class="row"><button class="btn" data-act="start">Start fast</button><button class="btn ghost" data-act="edit-start">Started earlier?</button></div></div></section>
+    ${last&&now-last.endAt<12*HOUR?`<section class="card soft"><div class="eyebrow">Last fast · ${OUTCOME[last.outcome]||''}</div><p>${fmtDur(dur(last))} of ${last.planned} h. ${REFEED[stageFor(dur(last)).n]}</p></section>`:''}
+    ${weekCard(now)}
+    ${state.feed.length?`<section><div class="eyebrow" style="margin-bottom:10px">Latest</div>${cardHtml(state.feed[state.feed.length-1])}</section>`:''}`; }
+  const h=elapsedHours(f,now), st=stageFor(h), left=f.hours-h, latest=state.feed[state.feed.length-1];
+  return topBar('Fast Forward')+`
+  <section class="ring-wrap" role="button" tabindex="0" data-act="tab" data-tab="stages" aria-label="See all stages">
+    <div id="ring">${ringSvg(h,f.hours,f.startAt)}</div>
+    <div class="ring-centre"><div class="clock display" id="clock">${fmtDur(h)}</div><div class="stage-name display" id="stagename">${esc(st.name)}</div></div>
+  </section>
+  <p class="cheer display" id="cheer">${esc(cheerFor(h,f.hours))}</p>
+  <p class="muted small center" id="togo">${togoText(h,f)}</p>
+  ${sleepSpans(f.startAt,f.hours).length?`<p class="muted small center" style="margin-top:-6px"><span style="display:inline-block;width:18px;height:5px;border-radius:3px;background:#8B85C9;vertical-align:middle"></span> usual sleep hours</p>`:''}
+  <div class="row" style="justify-content:center;margin-top:16px"><button class="btn ${left<=0?'ghost':'stage'}" id="checkin" data-act="open-checkin">${checkinDue(now)?'How are you feeling?':'Check in'}</button><button class="btn ${left<=0?'':'ghost'}" data-act="open-end">End fast</button></div>
+  <p class="muted small center" style="margin-top:10px">Started ${fmtWhen(f.startAt)} · <button class="link small" data-act="edit-start">change</button> · ${esc(protocolLabel(f.protocol,f.hours))}</p>
+  ${bodyCard(h,st,f)}
+  ${h>=72?`<section class="card warn-card"><div class="eyebrow" style="color:var(--warn)">72 hours</div><p>${STAGE_CARDS[7]}</p></section>`:''}
+  ${latest?`<section><div class="eyebrow" style="margin-bottom:10px">Latest</div>${cardHtml(latest)}<p style="margin-top:10px"><button class="link small" data-act="tab" data-tab="tips">All tips</button></p></section>`:''}
+  ${st.n>=3?`<section class="card soft"><div class="eyebrow">Gentle reminder</div><p>${yourCall(h)}</p></section><section>${stopSigns()}</section>`:''}`; }
+function weekCard(now){ const fasts=state.fasts.filter(f=>now-f.endAt<7*DAY), ci=state.checkins.filter(c=>now-c.at<7*DAY); if(fasts.length<2) return '';
+  const avg=k=>(ci.reduce((a,c)=>a+(c[k]||0),0)/ci.length).toFixed(1), hours=Math.round(fasts.reduce((a,f)=>a+dur(f),0)), done=fasts.filter(f=>f.outcome!=='ended early').length;
+  return `<section class="card soft"><div class="eyebrow">This week</div><p>${fasts.length} fasts, ${hours} hours, ${done} finished.${ci.length?` Energy ${avg('energy')} and mood ${avg('mood')} out of 5.`:''}</p></section>`; }
+// what the night does to this fast: which stage you wake in, or that the planned end lands while you sleep
+function overnight(h,f,now){ const d=new Date(now); if(d.getHours()<14) return ''; d.setDate(d.getDate()+1); d.setHours(7,0,0,0); const wakeH=h+(d.getTime()-now)/HOUR, end=f.startAt+f.hours*HOUR;
+  if(end<=d.getTime()) return `Your planned end lands at ${fmtWhen(end)}, while you're asleep. Eat when you wake; the extra hours count.`;
+  return `Sleep tonight and you'll wake in ${stageFor(wakeH).name}, about ${fmtDur(wakeH)} in, with the night's hours done for free.`; }
+function bodyCard(h,st,f){ const next=STAGES[st.n], within=next&&next.from<=f.hours, night=overnight(h,f,Date.now());
+  const coming=next?`<dt>Coming up</dt><dd>${esc(next.name)} in ${fmtDur(next.from-h)}${within?'':', past your planned end'}. ${esc(next.body)}</dd>`:'';
+  return `<section class="card" id="body"><div class="eyebrow"><i class="dot" style="--c:${st.color}"></i>Your body right now · ${esc(st.name)}</div><p>${BODY[st.n]}</p>
+  <dl class="facts"><dt>Feels like</dt><dd>${esc(st.feel)}</dd><dt>What helps</dt><dd>${esc(st.focus)}</dd>${coming}${night?`<dt>Overnight</dt><dd>${night}</dd>`:''}</dl></section>`; }
+function togoText(h,f){ const left=f.hours-h; return left>0?`${fmtDur(left)} to go · ends ${fmtWhen(f.startAt+f.hours*HOUR)}`:`${fmtDur(-left)} past your ${f.hours} h fast`; }
+function stagesHtml(){ const f=state.fast, cur=f?stageFor(elapsedHours(f,Date.now())).n:0;
+  return topBar('Stages')+`<p class="muted" style="margin-bottom:14px">What your body is doing, hour by hour. Boundaries are typical, not exact.</p><div class="stack">${STAGES.map(s=>`
+  <article class="stage-card" style="--c:${s.color};--stage-ink:${s.ink}"><div class="rail"></div><div>
+    <h3>${esc(s.name)}<span class="hours">${s.to===Infinity?'72 h+':`${s.from}–${s.to} h`}</span></h3>
+    ${cur===s.n?`<div style="margin-top:6px"><span class="here">You're here</span></div>`:''}
+    <p style="margin-top:6px">${esc(s.body)}</p>
+    <dl><dt>Feels like</dt><dd>${esc(s.feel)}</dd><dt>What helps</dt><dd>${esc(s.focus)}</dd></dl>
+    ${s.n>=5?`<p class="muted small" style="margin-top:8px">Longer fasts, 24 h and up. Talk to your doctor first.</p>`:''}
+  </div></article>`).join('')}
+  <section class="card soft"><div class="eyebrow">${SLEEP.title}</div><p>${SLEEP.body}</p><p>${SLEEP.watch}</p></section></div>`; }
+function ago(ms){ const m=Math.round(ms/6e4); return m<60?`${m} min`:fmtDur(ms/HOUR); }
+function tipsHtml(){ const now=Date.now(), f=state.fast, ci=lastCheckin(), fresh=ci&&now-ci.at<3*HOUR, trig=fresh?triggersFor(ci):[];
+  let live='';
+  if(f){ const h=elapsedHours(f,now), ctx=ctxNow(now), st=STAGES[ctx.stage-1];
+    live=`<p class="muted" style="margin-bottom:14px">What helps right now: ways to push through the hard hours, ride out the ones that pass on their own, and know when to stop. ${fresh?'Updated from your last check-in.':'Check in and they follow how you feel.'}</p><div class="stack">`+
+      liveFor(ctx,h).map(l=>`<article class="card feed-card" style="--c:${st.color}"><div class="eyebrow"><i class="dot"></i>${esc(l.cat)}</div><p>${esc(TIPS[l.tip].b)}</p></article>`).join('')+'</div>'; }
+  else live=`<p class="muted">Start a fast and a card for each of the six categories fills in here, picked for your stage, the time of day and your last check-in.</p>`;
+  return topBar('Tips')+live; }
+function historyHtml(){ const now=Date.now(), fasts=[...state.fasts].reverse(), ci7=state.checkins.filter(c=>now-c.at<7*DAY);
+  const avg=k=>ci7.length?(ci7.reduce((a,c)=>a+(c[k]||0),0)/ci7.length):0;
+  const total=state.fasts.reduce((a,f)=>a+dur(f),0), badges=badgesFor(state.fasts);
+  const meter=(label,v)=>`<div style="margin-top:10px"><div class="row" style="justify-content:space-between"><span class="small" style="font-weight:700">${label}</span><span class="small muted">${v?v.toFixed(1)+' / 5':'–'}</span></div><div class="meter"><i style="width:${v/5*100}%"></i></div></div>`;
+  return topBar('History')+`<div class="stats"><div class="stat"><b>${streak(state.fasts,now)}</b><span>day streak</span></div><div class="stat"><b>${state.fasts.length}</b><span>fasts</span></div><div class="stat"><b>${Math.round(total)}h</b><span>fasted</span></div></div>
+  <section class="card"><div class="eyebrow">Last 7 days · ${ci7.length} check-in${ci7.length===1?'':'s'}</div>${ci7.length?meter('Energy',avg('energy'))+meter('Mood',avg('mood')):`<p class="muted">Check in during a fast and your energy and mood trend shows here.</p>`}</section>
+  <section class="card"><div class="eyebrow">Badges</div>${badges.length?badges.map(b=>`<div class="badge"><i class="dot" style="--c:${b.color}"></i><div><b>${b.name}</b><div class="small muted">${b.why}</div></div></div>`).join(''):`<p class="muted">Finish your first fast to earn Broke through.</p>`}</section>
+  <section class="card"><div class="eyebrow">Fasts</div>${fasts.length?fasts.map(f=>`<div class="fast-row"><div><b>${fmtDur(dur(f))}</b> <span class="muted small">of ${f.planned} h · ${fmtDate(f.endAt)}</span></div><span class="pill ${f.outcome==='ended early'?'':'good'}">${OUTCOME[f.outcome]||''}</span></div>`).join(''):`<p class="muted">Your first finished fast will show up here.</p>`}</section>`; }
+function onboardingHtml(){ const ph=plannedHours();
+  const steps=[
+  `<h1 class="display">Know what's happening every hour of your fast.</h1><p class="muted" style="font-size:18px">Tips for food, movement and self-care, keyed to how you feel.</p><div class="stack"><button class="btn" data-act="ob-next" style="align-self:flex-start">Let's go</button></div>`,
+  `<h1 class="display">How often do you fast?</h1><p class="muted">Sets your starting protocol. Change it any time.</p><div class="stack"><button class="opt" data-act="ob-exp" data-p="12:12"><b>Never, this is my first</b><span>12:12</span></button><button class="opt" data-act="ob-exp" data-p="16:8"><b>Sometimes</b><span>16:8</span></button><button class="opt" data-act="ob-exp" data-p="18:6"><b>Regularly</b><span>18:6</span></button></div>`,
+  `<h1 class="display">Fasting isn't right for everyone.</h1><ul>${NO_FAST.map(x=>`<li>${x}</li>`).join('')}</ul><p>${NO_FAST_COPY}</p><label class="check"><input type="checkbox" id="ob-ok"> None of these apply to me, and I'm 18 or over.</label><p class="err" id="ob-err" hidden>Tick the box to continue.</p><div class="stack"><button class="btn" data-act="ob-safe" style="align-self:flex-start">Continue</button></div>`,
+  `<h1 class="display">Your first fast starts when you finish your next meal.</h1><p class="muted">${esc(protocolLabel(state.protocol,ph))}, a ${ph} hour fast. Change it later in Settings.</p><div class="stack"><button class="btn" data-act="start">Start now</button><button class="btn ghost" data-act="edit-start">I finished eating earlier</button><button class="link" data-act="ob-done">Later</button></div>`];
+  return `<div class="ob">${steps[ob]}</div>`; }
+
+/* ---------- sheets ---------- */
+function openSheet(html){ const s=$('#sheet'); s.querySelector('.sheet').innerHTML=html; s.hidden=false; document.body.classList.add('noscroll'); s.querySelector('.sheet').scrollTop=0; }
+function closeSheet(){ $('#sheet').hidden=true; document.body.classList.remove('noscroll'); pendingStart=null; }
+function toast(msg,ms=1600){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),ms); }
+function seg(group,opts){ return `<div class="seg" data-group="${group}">${opts.map(([v,l,on])=>`<button type="button" class="${on?'on':''}" data-act="pick" data-v="${v}" aria-label="${esc(l)}">${l}</button>`).join('')}</div>`; }
+function checkinSheet(){ return `<h2 class="display">How are you feeling?</h2><p class="muted small">Tips for the next few hours follow what you log here.</p><div class="stack">
+  <div class="field"><label>Energy</label>${seg('energy',[1,2,3,4,5].map(v=>[v,v,v===3]))}</div>
+  <div class="field"><label>Mood</label>${seg('mood',[1,2,3,4,5].map(v=>[v,face(v),v===3]))}</div>
+  <div class="field"><label>Cravings <small>Wanting one particular food, like chocolate or chips</small></label>${seg('cravings',[[0,'None',true],[1,'Mild'],[2,'Strong']])}</div>
+  <div class="field"><label>Hunger <small>What your stomach says, not your head</small></label>${seg('hunger',[1,2,3,4,5].map(v=>[v,v,v===3]))}<div class="ends"><span>Not hungry</span><span>Ravenous</span></div></div>
+  <div class="field"><label>Anything else?</label><div class="chips" data-group="chips" data-multi>${CHIPS.map(c=>`<button type="button" class="chip" data-act="pick" data-v="${c}">${c}</button>`).join('')}</div></div>
+  <textarea id="ci-note" placeholder="A note, if you want one" maxlength="500"></textarea>
+  <button class="btn wide" data-act="save-checkin">Save check-in</button><button class="link" data-act="close" style="align-self:center">Not now</button></div>`; }
+function endSheet(){ const f=state.fast, h=elapsedHours(f,Date.now()), st=stageFor(h);
+  return `<h2 class="display">End your fast?</h2><p>You're at <b>${fmtDur(h)}</b> of ${f.hours} h.</p><div class="stack"><p class="muted">${yourCall(h)}</p><div class="card soft"><div class="eyebrow">Break it well</div><p>${REFEED[st.n]}</p></div><div class="row"><button class="btn" data-act="end">End fast</button><button class="btn ghost" data-act="close">Keep going</button></div></div>`; }
+function endedSheet(r){ const head={completed:`${fmtDur(r.h)}. You did it.`,extended:`${fmtDur(r.h)}, past your ${r.rec.planned} h fast.`,'ended early':`${fmtDur(r.h)}, and that counts.`}[r.rec.outcome];
+  const line=r.rec.outcome==='ended early'?REFRAME(Math.floor(r.h)).split('. ').slice(1).join('. '):'Eat something gentle and enjoy your window.';
+  const last3=state.fasts.slice(-3), shorter=PROTOCOLS.filter(p=>!p.long&&p.hours<plannedHours()).pop();
+  const nudge=last3.length===3&&last3.every(f=>roughFast(f,state.checkins))&&shorter?`<div class="card soft"><div class="eyebrow">Three rough fasts in a row</div><p>That's information, not a verdict. A shorter fast might fit your body better right now.</p><p><button class="link" data-act="set-protocol" data-p="${shorter.id}">Switch to ${shorter.name}</button></p></div>`:'';
+  return `<h2 class="display">${head}</h2><p>${line}</p><div class="stack"><div class="card soft"><div class="eyebrow">Break it well</div><p>${REFEED[r.st.n]}</p></div>${nudge}${r.newBadges.map(b=>`<div class="badge"><i class="dot" style="--c:${b.color}"></i><div><b>New badge: ${b.name}</b><div class="small muted">${b.why}</div></div></div>`).join('')}<button class="btn wide" data-act="close">Done</button></div>`; }
+function protocolSheet(){ const opt=p=>`<button class="opt ${state.protocol===p.id?'on':''}" data-act="set-protocol" data-p="${p.id}"><b>${p.name}</b><span>${p.hours} h fast · ${p.note}</span></button>`;
+  return `<h2 class="display">Protocol</h2>${state.fast?'<p class="muted small">Applies to your next fast.</p>':''}<div class="stack">${PROTOCOLS.filter(p=>!p.long).map(opt).join('')}
+  <div class="opt ${state.protocol==='custom'?'on':''}" style="flex-wrap:wrap"><b>Custom</b><span class="row"><input type="number" id="custom-h" min="4" max="72" value="${state.customHours}" aria-label="Hours"> h <button class="btn ghost" style="min-height:40px;padding:8px 14px" data-act="set-custom">Use</button></span></div>
+  <div class="eyebrow" style="margin-top:8px">Longer fasts</div><p class="muted small">24 h and up. Talk to your doctor first. You'll confirm each time you start one.</p>${PROTOCOLS.filter(p=>p.long).map(opt).join('')}</div>`; }
+/* clock picker: picker.day = days back from today, picker.h = 0–23, picker.m = 0–59 */
+let picker={day:0,h:12,m:0,mode:'hour'};
+function startAtSheet(){ const d=new Date(state.fast?state.fast.startAt:Date.now()-HOUR), today=new Date(), ds=new Date(d); today.setHours(0,0,0,0); ds.setHours(0,0,0,0);
+  picker={day:Math.max(0,Math.round((today-ds)/DAY)),h:d.getHours(),m:d.getMinutes(),mode:'hour',hours:state.fast?state.fast.hours:plannedHours(),protocol:state.fast?state.fast.protocol:state.protocol};
+  const days=[0,1,2,3].map(o=>{ const x=new Date(); x.setDate(x.getDate()-o); const l=o===0?'Today':o===1?'Yesterday':x.toLocaleDateString([],{weekday:'long'}); return `<button class="chip" data-act="pick-day" data-d="${o}">${l}</button>`; }).join('');
+  const lengths=PROTOCOLS.map(p=>`<button class="chip" data-act="pick-hours" data-h="${p.hours}" data-p="${p.id}">${p.name}</button>`).join('');
+  return `<h2 class="display">${state.fast?'Change your fast':'When did you finish eating?'}</h2><div class="stack"><div class="eyebrow">${state.fast?'Started':'Day'}</div><div class="chips" id="days">${days}</div><div class="readout" id="readout"></div><div class="dial" id="dial" tabindex="0" role="slider" aria-label="Clock. Drag the hand, or use the arrow keys."></div>
+  <div class="eyebrow">Fast length</div><div class="chips" id="hours">${lengths}</div><label class="check" id="long-row" hidden><input type="checkbox" id="long-ok2"> 24 h and up. I've read the stop signs and I'm choosing to go ahead.</label>
+  <p class="err" id="start-err" aria-live="polite" style="min-height:1.45em;margin-top:-4px"></p><button class="btn wide" data-act="set-start">${state.fast?'Update fast':'Start from then'}</button></div>`; }
+function pickerTime(){ const d=new Date(); d.setDate(d.getDate()-picker.day); d.setHours(picker.h,picker.m,0,0); return d.getTime(); }
+const dialHour=(a,pm)=>(pm?12:0)+Math.round(a/30)%12, dialMinute=(a,snap)=>(snap?Math.round(a/30)*5:Math.round(a/6))%60;
+function renderClock(){ const p=picker, C=130, R=96, hour=p.mode==='hour', rad=a=>(a-90)*Math.PI/180;
+  const val=hour?p.h%12:p.m, ang=hour?val*30:val*6, px=C+R*Math.cos(rad(ang)), py=C+R*Math.sin(rad(ang)), pip=!hour&&p.m%5!==0;
+  let nums=''; for(let i=0;i<12;i++){ const a=i*30, x=C+R*Math.cos(rad(a)), y=C+R*Math.sin(rad(a)); const v=hour?(i||12):String(i*5).padStart(2,'0'); const sel=hour?val===i:p.m===i*5;
+    nums+=`<text class="num ${sel?'sel':''}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central">${v}</text>`; }
+  $('#dial').innerHTML=`<svg viewBox="0 0 260 260" aria-hidden="true"><circle class="face" cx="130" cy="130" r="128"/><line class="hand" x1="130" y1="130" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}"/><circle class="dot" cx="130" cy="130" r="4"/><circle class="dot" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="20"/>${pip?`<circle class="pip" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3"/>`:''}${nums}</svg>`;
+  const dial=$('#dial'); dial.setAttribute('aria-valuemin','0'); dial.setAttribute('aria-valuemax','1439'); dial.setAttribute('aria-valuenow',String(p.h*60+p.m)); dial.setAttribute('aria-valuetext',fmtTime(pickerTime()));
+  const focused=document.activeElement, key=focused&&focused.closest('#readout')?(focused.dataset.m||focused.dataset.v):null;
+  $('#readout').innerHTML=`<button class="${hour?'on':''}" data-act="clock-mode" data-m="hour" aria-label="Set hour" aria-pressed="${hour}">${p.h%12||12}</button><span class="colon">:</span><button class="${hour?'':'on'}" data-act="clock-mode" data-m="minute" aria-label="Set minutes" aria-pressed="${!hour}">${String(p.m).padStart(2,'0')}</button><div class="ampm"><button class="${p.h<12?'on':''}" data-act="clock-ampm" data-v="AM" aria-pressed="${p.h<12}">AM</button><button class="${p.h>=12?'on':''}" data-act="clock-ampm" data-v="PM" aria-pressed="${p.h>=12}">PM</button></div>`;
+  if(key){ const b=$('#readout').querySelector(`[data-m="${key}"],[data-v="${key}"]`); if(b) b.focus(); }
+  $('#days').querySelectorAll('.chip').forEach(b=>b.classList.toggle('on',Number(b.dataset.d)===p.day));
+  $('#hours').querySelectorAll('.chip').forEach(b=>b.classList.toggle('on',b.dataset.p===p.protocol));
+  $('#long-row').hidden=!(p.hours>24&&!(state.fast&&state.fast.hours>24)); }
+function initClock(){ const el=$('#dial'); let down=false, moved=false, sx=0, sy=0;
+  const angle=e=>{ const r=el.getBoundingClientRect(); let a=Math.atan2(e.clientX-r.left-r.width/2,-(e.clientY-r.top-r.height/2))*180/Math.PI; return a<0?a+360:a; };
+  const apply=(a,snap)=>{ if(picker.mode==='hour') picker.h=dialHour(a,picker.h>=12); else picker.m=dialMinute(a,snap); renderClock(); };
+  el.addEventListener('pointerdown',e=>{ down=true; moved=false; sx=e.clientX; sy=e.clientY; el.setPointerCapture(e.pointerId); el.focus(); apply(angle(e),true); e.preventDefault(); });
+  el.addEventListener('pointermove',e=>{ if(!down) return; if(!moved&&Math.hypot(e.clientX-sx,e.clientY-sy)<8) return; moved=true; apply(angle(e),false); });
+  el.addEventListener('pointerup',()=>{ if(!down) return; down=false; if(picker.mode==='hour'){ picker.mode='minute'; renderClock(); } });
+  el.addEventListener('pointercancel',()=>{ down=false; });
+  el.addEventListener('keydown',e=>{ const d={ArrowUp:1,ArrowRight:1,ArrowDown:-1,ArrowLeft:-1}[e.key]; if(!d) return; e.preventDefault();
+    if(picker.mode==='hour') picker.h=(picker.h+d+24)%24; else picker.m=(picker.m+d+60)%60; renderClock(); });
+  renderClock(); }
+function longSheet(){ return `<h2 class="display">Fasts past 24 hours</h2><p>These go best with a doctor who knows you're doing them. Keep salt and electrolytes up, stand slowly, and end the fast if any stop sign shows up.</p><div class="stack"><ul>${STOP_SIGNS.map(s=>`<li>${s}</li>`).join('')}</ul><label class="check"><input type="checkbox" id="long-ok"> I've read this and I'm choosing to go ahead.</label><p class="err" id="long-err" hidden>Tick the box to start.</p><button class="btn wide" data-act="start-long">Start fast</button></div>`; }
+function pausedSheet(){ return `<h2 class="display">Longer fasts are paused for now.</h2><p>Your last three long fasts came with low mood. That's a pattern worth talking through with your doctor or someone you trust before the next long one. Shorter fasts are still here, and they count.</p><div class="stack"><p class="muted small">If fasting has started to feel like a way to punish yourself, please reach out to an eating-disorder helpline where you live. You deserve support, not a timer.</p><button class="btn wide" data-act="open-protocol">Choose a shorter fast</button><button class="link" data-act="close" style="align-self:center">Close</button></div>`; }
+function settingsSheet(){ const al=alertsStatus(), alLabel={on:'On',off:'Turn on',blocked:'Blocked in your browser settings',none:'Not available in this browser'}[al];
+  return `<h2 class="display">Settings</h2><div class="stack"><button class="opt" data-act="open-protocol"><b>Protocol</b><span>${esc(protocolLabel(state.protocol,plannedHours()))} · ${plannedHours()} h</span></button>
+  <div><button class="opt" data-act="alerts" ${al==='blocked'||al==='none'?'disabled':''}><b>Stage and tip alerts</b><span>${alLabel}</span></button><p class="muted small" style="margin:6px 4px 0">Only while this page is open in the background. Quiet between 11 pm and 6 am.</p></div>
+  <details class="card"><summary style="font-weight:800;cursor:pointer">Who shouldn't fast</summary><ul>${NO_FAST.map(x=>`<li>${x}</li>`).join('')}</ul><p>${NO_FAST_COPY}</p></details>
+  <details class="card warn-card"><summary>Stop signs</summary><ul>${STOP_SIGNS.map(s=>`<li>${s}</li>`).join('')}</ul><p>${STOP_COPY}</p></details>
+  <p class="muted small">Everything stays on this device. No account, nothing uploaded. Clearing your browser data clears this too.</p>
+  <div id="reset-row"><button class="link danger small" data-act="reset">Erase everything</button></div>
+  <p class="muted small">Fast Forward, web 1.0.</p></div>`; }
+
+/* ---------- actions ---------- */
+document.addEventListener('click',e=>{ const el=e.target.closest('[data-act]'); if(!el) return; const a=el.dataset.act, now=Date.now();
+  if(a==='tab'){ view=el.dataset.tab; render(); window.scrollTo(0,0); }
+  else if(a==='close') closeSheet();
+  else if(a==='open-settings') openSheet(settingsSheet());
+  else if(a==='alerts'){ if(alertsStatus()==='on'){ state.alerts=false; save(); openSheet(settingsSheet()); } else Notification.requestPermission().then(p=>{ state.alerts=p==='granted'; save(); openSheet(settingsSheet()); if(state.alerts) toast('Alerts on'); }); }
+  else if(a==='open-protocol') openSheet(protocolSheet());
+  else if(a==='set-protocol'){ state.protocol=el.dataset.p; save(); closeSheet(); render(); }
+  else if(a==='set-custom'){ const h=Math.round(Number($('#custom-h').value)); if(h>=4&&h<=72){ state.protocol='custom'; state.customHours=h; save(); closeSheet(); render(); } }
+  else if(a==='start') requestStart(now);
+  else if(a==='edit-start'){ openSheet(startAtSheet()); initClock(); }
+  else if(a==='pick-day'){ picker.day=Number(el.dataset.d); renderClock(); }
+  else if(a==='pick-hours'){ picker.hours=Number(el.dataset.h); picker.protocol=el.dataset.p; renderClock(); }
+  else if(a==='clock-mode'){ picker.mode=el.dataset.m; renderClock(); }
+  else if(a==='clock-ampm'){ picker.h=picker.h%12+(el.dataset.v==='PM'?12:0); renderClock(); }
+  else if(a==='set-start'){ const t=pickerTime(), err=$('#start-err');
+    if(t>now){ err.textContent='Pick a time in the past.'; return; }
+    if(now-t>72*HOUR){ err.textContent='The app caps fasts at 72 hours.'; return; }
+    if(!$('#long-row').hidden&&!$('#long-ok2').checked){ err.textContent='Tick the box for a fast past 24 hours.'; return; }
+    if(state.fast){ const f=state.fast, old=f.startAt; state.checkins.concat(state.feed).forEach(x=>{ if(x.fastStart===old) x.fastStart=t; });
+      f.startAt=t; f.hours=picker.hours; f.protocol=picker.protocol; if(elapsedHours(f,now)<f.hours) delete f.doneAt;
+      f.lastTipHour=Math.min(f.lastTipHour,Math.floor(elapsedHours(f,now))); deliverDue(now); save(); closeSheet(); render(); }
+    else { state.protocol=picker.protocol; save(); if(picker.hours>24) startFast(t); else requestStart(t); } }
+  else if(a==='start-long'){ if(!$('#long-ok').checked){ $('#long-err').hidden=false; return; } startFast(pendingStart||now); }
+  else if(a==='open-checkin') openSheet(checkinSheet());
+  else if(a==='pick'){ const g=el.closest('[data-group]'); if(g.hasAttribute('data-multi')) el.classList.toggle('on'); else { g.querySelectorAll('.on').forEach(b=>b.classList.remove('on')); el.classList.add('on'); } }
+  else if(a==='save-checkin') saveCheckin();
+  else if(a==='open-end') openSheet(endSheet());
+  else if(a==='end'){ const r=endFast(); openSheet(endedSheet(r)); render(); }
+  else if(a==='ob-next'){ ob++; render(); }
+  else if(a==='ob-exp'){ state.protocol=el.dataset.p; save(); ob++; render(); }
+  else if(a==='ob-safe'){ if(!$('#ob-ok').checked){ $('#ob-err').hidden=false; return; } ob++; render(); }
+  else if(a==='ob-done'){ state.onboarded=true; save(); render(); }
+  else if(a==='reset'){ $('#reset-row').innerHTML=`<span class="small">Erase every fast, check-in and tip? </span><button class="link danger small" data-act="reset-confirm">Yes, erase</button>`; }
+  else if(a==='reset-confirm'){ try{ localStorage.removeItem(KEY) }catch{} state=fresh(); ob=0; view='home'; closeSheet(); render(); }
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#sheet').hidden) closeSheet(); if(e.key==='Enter'&&e.target.matches('.ring-wrap')) { view='stages'; render(); } });
+
+/* ---------- tick ---------- */
+function tick(){ if(!state.onboarded) return; const now=Date.now();
+  if(deliverDue(now)){ if(view==='home'||view==='tips') render(); return; }
+  if(view==='home'&&state.fast){ const f=state.fast, h=elapsedHours(f,now), st=stageFor(h);
+    $('#clock').textContent=fmtDur(h); $('#ring').innerHTML=ringSvg(h,f.hours,f.startAt); $('#togo').textContent=togoText(h,f); $('#stagename').textContent=st.name; $('#cheer').textContent=cheerFor(h,f.hours);
+    if(Math.floor(h*60)%60===0) $('#body').outerHTML=bodyCard(h,st,f);
+    $('#checkin').textContent=checkinDue(now)?'How are you feeling?':'Check in'; setTint();
+    if($('#sheet').hidden&&!document.hidden&&checkinDue(now)&&!(f.askedAt>now-4*HOUR)){ f.askedAt=now; save(); openSheet(checkinSheet()); } } }
+setInterval(tick,1000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
+window.addEventListener('storage',e=>{ if(!e.key||e.key===KEY){ state=load(); render(); } });
+
+/* ---------- self-check: open index.html#test ---------- */
+function selftestHtml(){ const out=[]; const ok=(name,c)=>out.push((c?'PASS ':'FAIL ')+name);
+  ok('stage boundaries',[0,4,11.9,12,16,24,48,72,100].map(h=>stageFor(h).n).join()==='1,2,2,3,4,5,6,7,7');
+  ok('protocol fit',fitFor(16)==='short'&&fitFor(18)==='medium'&&fitFor(36)==='long');
+  ok('time of day',todFor(new Date(2026,9,8,8))==='morning'&&todFor(new Date(2026,9,8,23))==='night');
+  ok('triggers',triggersFor({energy:1,mood:3,cravings:2,hunger:5,chips:['headache','cold']}).join()==='low energy,strong cravings,high hunger,headache');
+  const base={stage:3,fit:'short',tod:'midday',recent:new Map(),lastCat:null,triggers:[]};
+  const t1=pickTip({...base,triggers:['headache']}); ok('trigger tip wins',t1>=0&&TIPS[t1].t==='headache'&&[0,3].includes(TIPS[t1].s));
+  const t2=pickTip({...base,lastCat:'science'}); ok('category rotates',t2>=0&&TIPS[t2].t==='none'&&TIPS[t2].c!=='science');
+  const pool3=TIPS.map((t,i)=>i).filter(i=>TIPS[i].s===3&&TIPS[i].t==='none'&&TIPS[i].d==='any'), k=pool3[0];
+  ok('14-day rule prefers an unseen tip',pickTip({...base,recent:new Map(pool3.filter(i=>i!==k).map(i=>[i,1e12]))})===k);
+  const seen=new Map(TIPS.map((t,i)=>[i,1e12+i*1e5])); const t3=pickTip({...base,recent:seen}); ok('tips never go silent, oldest shown wins',t3===pool3[0]);
+  ok('rough fast',roughFast({startAt:1,outcome:'completed'},[{fastStart:1,energy:3,chips:['dizzy']}])&&!roughFast({startAt:1,outcome:'completed'},[{fastStart:1,energy:3,chips:[]}]));
+  const lf=n=>({startAt:n,endAt:n+36*HOUR,planned:36,outcome:'completed'}), lc=(n,m)=>({fastStart:n,at:n+HOUR,mood:m});
+  ok('low mood pauses long fasts',lowMoodLong([lf(1),lf(2),lf(3)],[lc(1,1),lc(2,2),lc(3,2)])&&!lowMoodLong([lf(1),lf(2),lf(3)],[lc(1,1),lc(2,4),lc(3,2)])&&!lowMoodLong([lf(1),{...lf(2),planned:16},lf(3)],[lc(1,1),lc(2,1),lc(3,1)]));
+  ok('outcome',outcomeFor(14,16)==='ended early'&&outcomeFor(16,16)==='completed'&&outcomeFor(18.5,16)==='extended');
+  const now=new Date(2026,9,8,15).getTime(), d=n=>now-n*DAY, mk=(n,o)=>({startAt:d(n)-16*HOUR,endAt:d(n),planned:16,outcome:o});
+  ok('streak forgives one slip a week',streak([mk(1,'completed'),mk(2,'ended early'),mk(3,'completed'),mk(4,'ended early'),mk(5,'completed')],now)===3);
+  ok('streak breaks on a missed day',streak([mk(1,'completed'),mk(3,'completed')],now)===1&&streak([mk(3,'completed')],now)===0);
+  ok('a 48 h fast credits the days it ran through',streak([{startAt:d(1)-48*HOUR,endAt:d(1),planned:48,outcome:'completed'}],now)===2);
+  const banned=/\b(diet|cheat|fail|failure|discipline|skinny)\b|burn(ing)? calories/i;
+  ok('tips ≤45 words',TIPS.every(t=>t.b.split(/\s+/).length<=45)); ok('tips avoid banned words',TIPS.every(t=>!banned.test(t.b))&&!Object.values(STAGE_CARDS).some(s=>banned.test(s)));
+  ok('every stage has tips',STAGES.every(s=>TIPS.some(t=>t.s===s.n&&t.t==='none')));
+  ok('every stage has body copy and cheer',STAGES.every(s=>BODY[s.n]&&CHEER[s.n].length)&&cheerFor(0,16)===CHEER[1][0]&&cheerFor(15.5,16)==='Under an hour to go. Finish gently.'&&cheerFor(17,16).startsWith('You did your 16 hours'));
+  const lv=liveFor({...base,triggers:['headache']},13), lv2=liveFor(base,14);
+  ok('live cards: one per category, triggers win, hour rotates',lv.every(l=>TIPS[l.tip].c===l.cat)&&new Set(lv.map(l=>l.cat)).size===lv.length&&TIPS[lv.find(l=>l.cat==='self-care').tip].t==='headache'&&lv2.every(l=>TIPS[l.tip].t==='none')&&lv.length>=4);
+  ok('overnight line',overnight(10,{startAt:new Date(2026,9,8,10).getTime(),hours:36},new Date(2026,9,8,20).getTime()).startsWith('Sleep tonight and you')&&overnight(10,{startAt:new Date(2026,9,8,10).getTime(),hours:16},new Date(2026,9,8,20).getTime()).startsWith('Your planned end')&&overnight(5,{startAt:0,hours:16},new Date(2026,9,8,9).getTime())==='');
+  const sp=sleepSpans(new Date(2026,9,8,22).getTime(),16); ok('sleep band covers 23:00 to 07:00',sp.length===1&&Math.abs(sp[0][0]-1)<.01&&Math.abs(sp[0][1]-9)<.01&&sleepSpans(new Date(2026,9,8,8).getTime(),12).length===0);
+  ok('your call rotates and never scolds',YOUR_CALL.length>=5&&yourCall(13)!==yourCall(14)&&YOUR_CALL.every(s=>!banned.test(s)));
+  ok('every trigger chip has a tip',TRIGGER_CHIPS.every(c=>CHIPS.includes(c)&&TIPS.some(t=>t.t===c)));
+  const bad=sanitize({feed:[{kind:'tip',tip:9999},{kind:'stage',stage:3},{kind:'tip',tip:0}],fasts:'x',checkins:[null],fast:{startAt:1},customHours:900,protocol:'nope'});
+  ok('saved state is sanitized',bad.feed.length===2&&bad.feed[1].text===TIPS[0].b&&bad.feed[1].cat===TIPS[0].c&&bad.fasts.length===0&&bad.checkins.length===0&&bad.fast===null&&bad.customHours===16&&bad.protocol==='16:8'&&fresh().fasts!==fresh().fasts);
+  ok('tint blends between stages',mix('#000000','#ffffff',.5)==='#808080'&&tintFor(0).color===STAGES[0].color.toLowerCase()&&tintFor(16).color===STAGES[3].color.toLowerCase()&&tintFor(14).color!==STAGES[2].color.toLowerCase()&&tintFor(100).color===STAGES[6].color.toLowerCase());
+  ok('quiet hours',isNight(new Date(2026,9,8,23))&&isNight(new Date(2026,9,8,5,59))&&!isNight(new Date(2026,9,8,6))&&!isNight(new Date(2026,9,8,22,59)));
+  ok('dial math',dialHour(0,false)===0&&dialHour(0,true)===12&&dialHour(359,true)===12&&dialHour(330,false)===11&&dialHour(100,false)===3&&dialMinute(270,true)===45&&dialMinute(272,false)===45&&dialMinute(359,false)===0&&dialMinute(358,true)===0);
+  console.log(out.join('\n')); return `<pre class="test">${out.join('\n')}</pre>`; }
+
+render(); tick();
+// fonts load after first paint so a slow connection never shows a blank screen; the token stacks already name system fallbacks
+{ const l=document.createElement('link'); l.rel='stylesheet'; l.href='https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Nunito:wght@400;600;700;800&display=swap'; document.head.appendChild(l); }
+</script>
+</body>
+</html>
